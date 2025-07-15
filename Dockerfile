@@ -1,31 +1,27 @@
-FROM node:21.2.0-slim AS builder
+FROM node:21.2.0-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm ci
-
-COPY . .
-
-RUN npm run build
-
-FROM node:21.2.0-slim AS runner
-
+# 1. Chromium + Abhängigkeiten installieren
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    fonts-liberation \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# 2. Puppeteer-Konfiguration
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 3. Arbeitsverzeichnis erstellen
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
+# 4. Nur package.json kopieren (für effizientes Caching)
+COPY package*.json ./
 
-EXPOSE 8080
+# 5. Abhängigkeiten installieren
+RUN npm install puppeteer
 
-CMD ["node", "dist/app.js"]
+# 6. Restliche Dateien kopieren
+COPY . .
+
+# 7. Container am Leben halten (für manuelle Befehle)
+CMD ["tail", "-f", "/dev/null"]
